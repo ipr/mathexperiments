@@ -265,12 +265,16 @@ CBigValue::~CBigValue(void)
 	}
 }
 
-// expecting 4 bytes (32 bits), non-IEEE compatible (Q23.8?)
+// expecting 4 bytes (32 bits), non-IEEE compatible (Q23.8?),
+// always big-endian value
 //
 // exponent: power of two, excess-64, two's-complement values are adjusted upward
 // by 64, thus changing $40 (-64) through $3F (+63) to $00 through $7F
 //
+// -> http://gega.homelinux.net/AmigaDevDocs/lib_35.html
 // -> http://amigadev.elowar.com/read/ADCD_2.1/Libraries_Manual_guide/node047D.html
+// -> http://www.tbs-software.com/guide/index.php?guide=rkm_libraries.doc%2Flib_35.guide
+//
 CBigValue& CBigValue::fromFFP32(const uint8_t *data)
 {
 	// 24 bits for mantissa, 8 for exponent
@@ -286,8 +290,9 @@ CBigValue& CBigValue::fromFFP32(const uint8_t *data)
 		return *this;
 	}
 
-	uint8_t scale = data[3]; // get exponent
+	m_nScale = data[3]; // get exponent
 
+	/*
 	uint32_t base = 0; // mantissa
 	base += (data[0] ^ (1 << 7));
 	base <<= 8;
@@ -295,7 +300,11 @@ CBigValue& CBigValue::fromFFP32(const uint8_t *data)
 	base <<= 8;
 	base += (data[2]);
 	base <<= 8;
+	*/
 
+	m_pBuffer[2] = (data[0] ^ (1 << 7));
+	m_pBuffer[1] = (data[1] & 0xFF);
+	m_pBuffer[0] = (data[2] & 0xFF);
 
 	return *this;
 }
@@ -310,7 +319,8 @@ CBigValue& CBigValue::fromFFP64(const uint8_t *data)
 // expecting 80 bits in "long double" format
 // note: avoid using typedef here since 
 // some compilers mismanage that (silent truncation/conversion)
-// (such as MSVC++ just silently truncates it to common double..)
+// (such as MSVC++ just silently truncates it to common double..),
+// always big-endian value
 //
 // -> see http://www.mactech.com/articles/mactech/Vol.06/06.01/SANENormalized/index.html
 //
@@ -333,7 +343,9 @@ CBigValue& CBigValue::fromExtended(const uint8_t *data)
 
 // 128-bits (16 bytes, SPARC/PowerPC)
 // note: avoid using typedef here since 
-// some compilers mismanage that (silent truncation/conversion)
+// some compilers mismanage that (silent truncation/conversion),
+// always big-endian value
+//
 CBigValue& CBigValue::fromQuadruple(const uint8_t *data)
 {
 	CreateBuffer(16);

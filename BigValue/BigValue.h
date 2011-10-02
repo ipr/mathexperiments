@@ -45,9 +45,40 @@
 // for extensions (log, square etc.)
 //class CBigOperator;
 
-
+/*
 // TODO: ffp float
+// avoid standard "float" as that's IEEE format float..
+typedef uint32_t FFPFloat;
+
 // TODO: extended double
+// "extended" keyword is not supported by VC++
+// -> we might define it to hold 10 bytes..
+union extended
+{
+	struct ext
+	{
+		uint32_t low;
+		uint32_t mid;
+		uint16_t hi;
+	} ext;
+	uint8_t data[10];
+}
+
+// TODO: quadruple
+// could be as __float128 if compiler supports.. (which it doesn't?)
+union quadruple
+{
+	struct ext
+	{
+		uint32_t low;
+		uint32_t midlo;
+		uint32_t midhi;
+		uint32_t hi;
+	} ext;
+	uint8_t data[16];
+}
+*/
+
 
 class CBigValue
 {
