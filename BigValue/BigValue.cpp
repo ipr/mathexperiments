@@ -377,8 +377,12 @@ CBigValue& CBigValue::fromExtended(const uint8_t *data)
 	scale += data[1];
 	m_nScale = scale;
 
-	// 64 bits -> even number of bits
-	fromIEEEMantissa(data + 2, 64);
+	// note: explicit integer bit exists
+	// in highest bit of significand (mantissa)
+	// between exponent and significand
+	// ->
+	// 63 bits -> odd number of bits
+	fromIEEEMantissa(data + 2, 63);
 
 	return *this;
 }
