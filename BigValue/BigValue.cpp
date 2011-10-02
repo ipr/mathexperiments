@@ -5,6 +5,7 @@
 //
 // Author: Ilkka Prusi, 2011
 // Contact: ilkka.prusi@gmail.com
+// Copyright (c): Ilkka Prusi
 //
 // Two main cases this class is meant to help with:
 // 1) some databases and such support huge values,
