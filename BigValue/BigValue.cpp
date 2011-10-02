@@ -46,6 +46,8 @@
 
 #include "BigValue.h"
 
+#include <memory>
+
 
 ////////// protected methods
 
@@ -102,6 +104,8 @@ void CBigValue::fromIEEEMantissa(const uint8_t *mantissa, const size_t size)
 		oddSize = true;
 		count += 1;
 	}
+
+	// TODO: convert complement values if negative?
 
 	// note: check for byteorder.. (swap also? -> reverse)
 	/*
@@ -181,7 +185,7 @@ CBigValue::CBigValue(const int64_t value)
 	}
 
 	// we don't want sign-bit remaining there..
-	m_pBuffer[count-1] = (m_pBuffer[count-1] ^ (1 << 7);
+	m_pBuffer[count-1] = (m_pBuffer[count-1] ^ (1 << 7));
 }
 
 CBigValue::CBigValue(const uint64_t value)
@@ -218,13 +222,18 @@ CBigValue::CBigValue(const double value)
 	, m_bNegative(false)
 {
 	CreateBuffer(8); // guess..
-	// deconstruct double to buffer..
-	m_bNegative = (value & (1 << 63)) ? true : false;
-	m_nScale = ((value & (0x7FF << 53)) >> 53) ^ (1 << 53);
 
-	// TODO: convert complement values if negative?
+	// deconstruct value to buffer..
 
 	uint8_t *data = (uint8_t*)(&value);
+
+	m_bNegative = (data[7] & (1 << 7)) ? true : false;
+
+	// 11 bits
+	m_nScale = (data[7] ^ (1 << 7));
+	m_nScale <<= 1;
+	m_nScale += ((data[6] & (0xF << 4)) >> 4);
+
 	// 52 bits -> even number of bits
 	fromIEEEMantissa(data + 1, 52);
 }
@@ -237,16 +246,18 @@ CBigValue::CBigValue(const float value)
 {
 	CreateBuffer(4); // guess..
 
-	// deconstruct double to buffer..
-	m_bNegative = (value & (1 << 31)) ? true : false;
-	m_nScale = ((value & (0xFF << 23)) >> 23) ^ (1 << 23);
+	// deconstruct value to buffer..
 
-	// TODO: convert complement values if negative?
 	uint8_t *data = (uint8_t*)(&value);
+
+	m_bNegative = (data[3] & (1 << 31)) ? true : false;
+	//m_nScale = ((value & (0xFF << 23)) >> 23) ^ (1 << 23);
+	m_nScale = (data[3] ^ (1 << 7));
+	m_nScale <<= 1;
+	m_nScale |= (data[2] & (1 << 7));
 
 	// 23 bits -> odd number of bits
 	fromIEEEMantissa(data + 1, 23);
-
 }
 
 CBigValue::CBigValue(const CBigValue &other)
@@ -410,7 +421,7 @@ CBigValue& CBigValue::fromQuadruple(const uint8_t *data)
 }
 
 // expecting buffer-format close to same..
-CBigValue& CBigValue::fromBuffer(const uint8_t *pData, const size_t nSize, const bool bIsNegative, size_t nScale = 0)
+CBigValue& CBigValue::fromBuffer(const uint8_t *pData, const size_t nSize, const bool bIsNegative, size_t nScale)
 {
 	CreateBuffer(nSize);
 	::memcpy(m_pBuffer, pData, nSize);
@@ -420,7 +431,7 @@ CBigValue& CBigValue::fromBuffer(const uint8_t *pData, const size_t nSize, const
 	return *this;
 }
 
-CBigValue& CBigValue::operator = (const CBigValue &other) const
+CBigValue& CBigValue::operator = (const CBigValue &other)
 {
 	// avoid self-assignment
 	if (&other == this)
@@ -495,7 +506,7 @@ CBigValue CBigValue::operator - (const CBigValue &other) const
 	return value;
 }
 
-uint64_t CBigValue::operator() const
+CBigValue::operator uint64_t() const
 {
 	// we know output limits so that simplifies..
 	uint64_t value = 0;
@@ -506,7 +517,7 @@ uint64_t CBigValue::operator() const
 	return value;
 }
 
-double CBigValue::operator() const
+CBigValue::operator double() const
 {
 	// we know output limits so that simplifies..
 	double value = 0.0;

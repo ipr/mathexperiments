@@ -137,7 +137,7 @@ public:
 	// other buffer "as-is" ?
 	CBigValue& fromBuffer(const uint8_t *pData, const size_t nSize, const bool bIsNegative, size_t nScale = 0);
 
-	CBigValue& operator = (const CBigValue &other) const;
+	CBigValue& operator = (const CBigValue &other);
 
 	CBigValue operator + (const CBigValue &other) const;
 	CBigValue operator - (const CBigValue &other) const;
@@ -145,8 +145,8 @@ public:
 	// TODO: for extending artihmetics etc.
 	//CBigValue operand(CBigOperator *pOp) const;
 
-	uint64_t operator() const;
-	double operator() const;
+	operator uint64_t() const;
+	operator double() const;
 
 	friend class CBigValue;
 };
