@@ -87,17 +87,18 @@ void CBigValue::fromIEEEMantissa(const uint8_t *mantissa, const size_t size)
 
 	for (int i = 0; i < count; i++)
 	{
-		if (i == 0)
+		if (i == 0
+			&& oddSize == false)
 		{
 			// drop normalization-bit to get raw-value
 			m_pBuffer[i] = (mantissa[0] ^ (1 << 7));
 		}
-		else if (i == count-1
+		else if (i == 0
 				&& oddSize == true)
 		{
 			// last byte needs masking (less than byte),
 			// generate mask of suitable size
-			int bits = size - ((size/8)*i);
+			int bits = (size - ((size/8)*i)) -1;
 			int mask = 1;
 			for (int shift = 1; shift < bits; shift++)
 			{
