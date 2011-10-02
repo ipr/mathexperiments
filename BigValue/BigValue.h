@@ -22,17 +22,25 @@
 // * FFP "fast floating-point"
 //   - 32-bit non-IEEE value with mantissa and exponent
 //   - considered fixed-point, always normalized (no hidden bit)
+//   - sign-bit is sign of exponent
 //   - exponent is power of two, excess-64 notation
 // * float 
 //   - IEEE compatible 32-bit floating point (single precision)
 //   - mantissa includes hidden bit for normalized value
+//   - sign-bit is sign of mantissa
 // * double 
 //   - IEEE compatible 64-bit floating point (double precision)
 //   - mantissa includes hidden bit for normalized value
+//   - sign-bit is sign of mantissa
 // * extended - "long double" 80-bit IEEE compatible floating pointer
 //   - IEEE compatible 80-bit floating point (extended precision)
 //   - mantissa includes hidden bit for normalized value
+//   - sign-bit is sign of mantissa
 // * quadruple - 128-bit format (SPARC/PowerPC)
+//   - IEEE compatbile 128-bit floating point (quadruple precision)
+//   - mantissa includes hidden bit for normalized value
+//   - sign-bit is sign of mantissa
+//   - note: separate non-IEEE 128-bit format found in IBM System/370..
 //
 
 #ifndef BIGVALUE_H

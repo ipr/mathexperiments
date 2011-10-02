@@ -22,17 +22,25 @@
 // * FFP "fast floating-point"
 //   - 32-bit non-IEEE value with mantissa and exponent
 //   - considered fixed-point, always normalized (no hidden bit)
+//   - sign-bit is sign of exponent
 //   - exponent is power of two, excess-64 notation
 // * float 
 //   - IEEE compatible 32-bit floating point (single precision)
 //   - mantissa includes hidden bit for normalized value
+//   - sign-bit is sign of mantissa
 // * double 
 //   - IEEE compatible 64-bit floating point (double precision)
 //   - mantissa includes hidden bit for normalized value
+//   - sign-bit is sign of mantissa
 // * extended - "long double" 80-bit IEEE compatible floating pointer
 //   - IEEE compatible 80-bit floating point (extended precision)
 //   - mantissa includes hidden bit for normalized value
+//   - sign-bit is sign of mantissa
 // * quadruple - 128-bit format (SPARC/PowerPC)
+//   - IEEE compatbile 128-bit floating point (quadruple precision)
+//   - mantissa includes hidden bit for normalized value
+//   - sign-bit is sign of mantissa
+//   - note: separate non-IEEE 128-bit format found in IBM System/370..
 //
 
 
@@ -78,7 +86,9 @@ void CBigValue::GrowBuffer(const size_t nBufSize)
 }
 
 // shared way of handling IEEE-format mantissa of varying lengths:
-// 24, 52, 64, 112 bits, including normalization-bit (handle it)
+// 24, 52, 64, 112 bits, including normalization-bit (handle it).
+// IEEE formats define sign as sign of mantissa (not sign of exponent as with FFP)
+// -> sign handled with exponent
 void CBigValue::fromIEEEMantissa(const uint8_t *mantissa, const size_t size)
 {
 	bool isNormalized = (mantissa[0] & (1 << 7)) ? true : false;
@@ -271,7 +281,7 @@ CBigValue::~CBigValue(void)
 // exponent: power of two, excess-64, two's-complement values are adjusted upward
 // by 64, thus changing $40 (-64) through $3F (+63) to $00 through $7F
 //
-// note: sign-bit is highest in exponent, not in mantissa:
+// note: sign-bit is highest in exponent (sign of exponent), not in mantissa:
 // MMMM MMMM MMMM MMMM MMMM MMMM SEEE EEEE
 // 31     24 23                8 7       0
 // (description from Paul Overaa's Amiga Assembler book)
