@@ -6,6 +6,16 @@
 // Author: Ilkka Prusi, 2011
 // Contact: ilkka.prusi@gmail.com
 //
+// Two main cases this class is meant to help with:
+// 1) some databases and such support huge values,
+// upto 30 bytes in some cases for which there is no native-type support..
+//
+// 2) some native variable types are not supported in other 
+// platforms and conversion helper is necessary:
+// reduction of precision may be acceptable in some cases
+// but not in all of them, customized handling may be needed..
+//
+//
 // Some type information for reference:
 // * int64_t/uint64_t 
 //   - signed/unsigned 64bit integer
@@ -33,6 +43,11 @@
 
 void CBigValue::CreateBuffer(const size_t nBufSize)
 {
+	if (m_pBuffer != nullptr)
+	{
+		delete m_pBuffer;
+	}
+
 	m_pBuffer = new uint8_t[nBufSize];
 	m_nBufferSize = nBufSize;
 	::memset(m_pBuffer, 0, m_nBufferSize);
@@ -43,8 +58,10 @@ void CBigValue::GrowBuffer(const size_t nBufSize)
 	if (m_pBuffer == nullptr)
 	{
 		CreateBuffer(nBufSize);
+		return;
 	}
-	else if (nBufSize > m_nBufferSize)
+
+	if (nBufSize > m_nBufferSize)
 	{
 		uint8_t *pBuffer = new uint8_t[nBufSize];
 		::memset(pBuffer, 0, nBufSize);
@@ -52,12 +69,11 @@ void CBigValue::GrowBuffer(const size_t nBufSize)
 		delete m_pBuffer;
 		m_pBuffer = pBuffer;
 		m_nBufferSize = nBufSize;
+		return;
 	}
+
 	/*
 	else // not larger -> do nothing
-	{
-		
-	}
 	*/
 }
 
@@ -223,6 +239,16 @@ CBigValue::CBigValue(const float value)
 
 }
 
+CBigValue::CBigValue(const CBigValue &other)
+	: m_pBuffer(nullptr)
+	, m_nBufferSize(0)
+	, m_nScale(0)
+	, m_bNegative(false)
+{
+	// use helper..
+	fromBuffer(other.m_pBuffer, other.m_nBufferSize, other.m_bNegative, other.m_nScale);
+}
+
 CBigValue::CBigValue(void)
 	: m_pBuffer(nullptr)
 	, m_nBufferSize(0)
@@ -333,6 +359,17 @@ CBigValue& CBigValue::fromBuffer(const uint8_t *pData, const size_t nSize, const
 	m_bNegative = bIsNegative;
 	m_nScale = nScale;
 
+	return *this;
+}
+
+CBigValue& CBigValue::operator = (const CBigValue &other) const
+{
+	// avoid self-assignment
+	if (&other == this)
+	{
+		return *this;
+	}
+	fromBuffer(other.m_pBuffer, other.m_nBufferSize, other.m_bNegative, other.m_nScale);
 	return *this;
 }
 
