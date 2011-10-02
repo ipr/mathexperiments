@@ -95,8 +95,15 @@ void CBigValue::fromIEEEMantissa(const uint8_t *mantissa, const size_t size)
 		else if (i == count-1
 				&& oddSize == true)
 		{
-			// last byte needs masking (less than byte)
+			// last byte needs masking (less than byte),
+			// generate mask of suitable size
 			int bits = size - ((size/8)*i);
+			int mask = 1;
+			for (int shift = 1; shift < bits; shift++)
+			{
+				mask |= (1 << shift);
+			}
+			m_pBuffer[i] = (mantissa[i] & mask);
 		}
 		else
 		{
