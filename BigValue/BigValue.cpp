@@ -9,6 +9,9 @@
 // Two main cases this class is meant to help with:
 // 1) some databases and such support huge values,
 // upto 30 bytes in some cases for which there is no native-type support..
+// In principle, there is or should not be upper limit 
+// on value size (except available memory), 
+// but in practice values are always much smaller than that..
 //
 // 2) some native variable types are not supported in other 
 // platforms and conversion helper is necessary:
