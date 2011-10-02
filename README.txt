@@ -5,5 +5,5 @@ Author: Ilkka Prusi
 Contact: ilkka.prusi@gmail.com
 
 List:
-(TODO)
+- BigValue - arbitrary-size math&conversions
 
