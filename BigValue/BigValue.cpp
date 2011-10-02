@@ -275,6 +275,30 @@ CBigValue::~CBigValue(void)
 	}
 }
 
+// scale value to given scale
+// TODO: do we keep scale as base-2 or base-10..?
+CBigValue& CBigValue::scaleTo(const size_t nScale)
+{
+	if (nScale == m_nScale)
+	{
+		// same -> do nothing
+		return *this;
+	}
+
+	if (nScale < m_nScale)
+	{
+		// check lower bytes how much "downwards" we can scale?
+		// or trust user and allow loss of precision?
+	}
+	else
+	{
+		// just scale "upwards" (add zero bytes if necessary)
+	}
+
+	return *this;
+}
+
+
 // expecting 4 bytes (32 bits), non-IEEE compatible (Q23.8?),
 // always big-endian value
 //

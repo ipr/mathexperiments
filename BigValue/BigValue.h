@@ -115,6 +115,9 @@ public:
 	CBigValue(void);
 	~CBigValue(void);
 
+	// scale value to given
+	CBigValue& scaleTo(const size_t nScale);
+
 	// "fast-floating point" format
 	// expecting 4 bytes
 	CBigValue& fromFFP32(const uint8_t *data);
