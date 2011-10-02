@@ -398,25 +398,50 @@ CBigValue CBigValue::operator + (const CBigValue &other) const
 	// we don't know output size or scale yet
 	// so we need to check our and given data for estimate..
 
+	// TODO:
 	// also need to check scaling of both,
 	// if either is negative, buffer sizes etc.
 
 	CBigValue value;
+	value.CreateBuffer(m_nBufferSize+1); // guess sufficient size for now..
 
-	value.CreateBuffer(m_nBufferSize+1); // guess..
+	uint8_t *pother = other.m_pBuffer;
+	/*
+	if (m_nScale > other.m_nScale)
+	{
+		// need temp and change scaling,
+		// memmove() to align values..
+		//pother = new uint8_t...
+		//other.scaleTo(m_nScale);
+	}
+	*/
 
 	// for larger than single element, keep overflow to next
 	uint16_t carry = 0;
-	for (int i = 0; i < m_nBufferSize; i++)
+
+	// TODO: likely different buffer sizes also..
+	for (int i = 0, j = 0; i < m_nBufferSize || j < other.m_nBufferSize; i++, j++)
 	{
-		carry += (m_pBuffer[i] + other.m_pBuffer[i]);
+		if (i == m_nBufferSize)
+		{
+			carry += pother[j];
+		}
+		else if (j == other.m_nBufferSize)
+		{
+			carry += m_pBuffer[i];
+		}
+		else
+		{
+			carry += (m_pBuffer[i] + pother[j]);
+		}
 		value.m_pBuffer += (carry &0xFF);
 		carry >>= 8;
 	}
+
 	if (carry > 0)
 	{
 		// overflow to destination (which should be larger)
-		value.m_pBuffer[m_nBufferSize] = (carry &0xFF);
+		value.m_pBuffer[value.m_nBufferSize -1] += (carry &0xFF);
 	}
 
 	return value;
