@@ -7,11 +7,21 @@
 // Contact: ilkka.prusi@gmail.com
 //
 // Some type information for reference:
-// * int64_t/uint64_t - signed/unsigned 64bit integer
-// * FFP - 32-bit non-IEEE value with mantissa and exponent, "fast floating-point"
-// * float - IEEE compatible 32-bit floating point (single precision)
-// * double - IEEE compatible 64-bit floating point (double precision)
+// * int64_t/uint64_t 
+//   - signed/unsigned 64bit integer
+// * FFP "fast floating-point"
+//   - 32-bit non-IEEE value with mantissa and exponent
+//   - considered fixed-point, always normalized (no hidden bit)
+//   - exponent is power of two, excess-64 notation
+// * float 
+//   - IEEE compatible 32-bit floating point (single precision)
+//   - mantissa includes hidden bit for normalized value
+// * double 
+//   - IEEE compatible 64-bit floating point (double precision)
+//   - mantissa includes hidden bit for normalized value
 // * extended - "long double" 80-bit IEEE compatible floating pointer
+//   - IEEE compatible 80-bit floating point (extended precision)
+//   - mantissa includes hidden bit for normalized value
 // * quadruple - 128-bit format (SPARC/PowerPC)
 //
 
@@ -49,6 +59,50 @@ void CBigValue::GrowBuffer(const size_t nBufSize)
 		
 	}
 	*/
+}
+
+// shared way of handling IEEE-format mantissa of varying lengths:
+// 24, 52, 64, 112 bits, including normalization-bit (handle it)
+void CBigValue::fromIEEEMantissa(const uint8_t *mantissa, const size_t size)
+{
+	bool isNormalized = (mantissa[0] & (1 << 7)) ? true : false;
+
+	// TODO: check for odd-number of bits..
+	// mantissa/exponent might not align to bytes (single-precision at least)
+	bool oddSize = false;
+	int count = (size/8);
+	if ((size % 8) != 0)
+	{
+		oddSize = true;
+		count += 1;
+	}
+
+	// note: check for byteorder.. (swap also? -> reverse)
+	/*
+	for (int i = 0, j = count; i < count && j > 0; i++, j--)
+	{
+		m_pBuffer[i] = (mantissa[j-1] & 0xFF);
+	}
+	*/
+
+	for (int i = 0; i < count; i++)
+	{
+		if (i == 0)
+		{
+			// drop normalization-bit to get raw-value
+			m_pBuffer[i] = (mantissa[0] ^ (1 << 7));
+		}
+		else if (i == count-1
+				&& oddSize == true)
+		{
+			// last byte needs masking (less than byte)
+			int bits = size - ((size/8)*i);
+		}
+		else
+		{
+			m_pBuffer[i] = (mantissa[i] & 0xFF);
+		}
+	}
 }
 
 
@@ -136,26 +190,9 @@ CBigValue::CBigValue(const double value)
 
 	// TODO: convert complement values if negative?
 
+	uint8_t *data = (uint8_t*)(&value);
 	// 52 bits -> even number of bits
-	uint64_t bitmask = 0xFF;
-	int maskshift = 0;
-	const int count = (52/8);
-	for (int i = 0; i < count; i++)
-	{
-		m_pBuffer[i] = ((value & bitmask) >> (maskshift*8));
-		bitmask <<= 8;
-		maskshift += 1;
-	}
-
-	/*
-	uint64_t base = (value & 0xFFFFFFFFFFFFF); // 52 bits
-	for (int i = 0; i < (52/8); i++)
-	{
-		m_pBuffer[i] = ((base & bitmask) >> (maskshift*8));
-		bitmask <<= 8;
-		maskshift += 1;
-	}
-	*/
+	fromIEEEMantissa(data + 1, 52);
 }
 
 CBigValue::CBigValue(const float value)
@@ -171,9 +208,11 @@ CBigValue::CBigValue(const float value)
 	m_nScale = ((value & (0xFF << 23)) >> 23) ^ (1 << 23);
 
 	// TODO: convert complement values if negative?
+	uint8_t *data = (uint8_t*)(&value);
 
 	// 23 bits -> odd number of bits
-	uint32_t base = (value & 0x7FFFFF);
+	fromIEEEMantissa(data + 1, 23);
+
 }
 
 CBigValue::CBigValue(void)
@@ -213,7 +252,7 @@ CBigValue& CBigValue::fromFFP32(const uint8_t *data)
 		return *this;
 	}
 
-	uint8_t scale = data[3];
+	uint8_t scale = data[3]; // get exponent
 
 	uint32_t base = 0; // mantissa
 	base += (data[0] ^ (1 << 7));
@@ -234,24 +273,46 @@ CBigValue& CBigValue::fromFFP64(const uint8_t *data)
 }
 */
 
-// expecting 80 bits in "long double" format,
-// not supported by MSVC++..
+// expecting 80 bits in "long double" format
+// note: avoid using typedef here since 
+// some compilers mismanage that (silent truncation/conversion)
+// (such as MSVC++ just silently truncates it to common double..)
+//
+// -> see http://www.mactech.com/articles/mactech/Vol.06/06.01/SANENormalized/index.html
+//
 CBigValue& CBigValue::fromExtended(const uint8_t *data)
 {
+	CreateBuffer(8); // guess..
+	m_bNegative = (data[0] & (1 << 7)) ? true : false;
+
+	// 15-bit exponent
+	uint32_t scale = 0;
+	scale = ((data[0] & 0x7F) << 8) ^ (1 << 7);
+	scale += data[1];
+	m_nScale = scale;
+
+	// 64 bits -> even number of bits
+	fromIEEEMantissa(data + 2, 64);
 
 	return *this;
 }
 
 // 128-bits (16 bytes, SPARC/PowerPC)
+// note: avoid using typedef here since 
+// some compilers mismanage that (silent truncation/conversion)
 CBigValue& CBigValue::fromQuadruple(const uint8_t *data)
 {
 	CreateBuffer(16);
 	m_bNegative = (data[0] & (1 << 7)) ? true : false;
 
+	// 15-bit exponent
 	uint32_t scale = 0;
 	scale = ((data[0] & 0x7F) << 8) ^ (1 << 7);
 	scale += data[1];
 	m_nScale = scale;
+
+	// 112 bits -> even number of bits
+	fromIEEEMantissa(data + 2, 112);
 
 	return *this;
 }

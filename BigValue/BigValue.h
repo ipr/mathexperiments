@@ -43,6 +43,8 @@ protected:
 	void CreateBuffer(const size_t nBufSize);
 	void GrowBuffer(const size_t nBufSize);
 
+	void fromIEEEMantissa(const uint8_t *mantissa, const size_t size);
+
 public:
 	explicit CBigValue(const int64_t value);
 	explicit CBigValue(const uint64_t value);
@@ -59,9 +61,13 @@ public:
 	//CBigValue& fromFFP64(const uint8_t *data);
 
 	// expecting 80 bits in "long double" format
+	// note: avoid using typedef here since 
+	// some compilers mismanage that (silent truncation/conversion)
 	CBigValue& fromExtended(const uint8_t *data);
 
 	// 128-bits (16 bytes, SPARC/PowerPC)
+	// note: avoid using typedef here since 
+	// some compilers mismanage that (silent truncation/conversion)
 	CBigValue& fromQuadruple(const uint8_t *data);
 
 	// other buffer "as-is" ?
