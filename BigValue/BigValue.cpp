@@ -432,11 +432,11 @@ CBigValue CBigValue::operator + (const CBigValue &other) const
 	// TODO: likely different buffer sizes also..
 	for (int i = 0, j = 0; i < m_nBufferSize || j < other.m_nBufferSize; i++, j++)
 	{
-		if (i == m_nBufferSize)
+		if (i >= m_nBufferSize)
 		{
 			carry += pother[j];
 		}
-		else if (j == other.m_nBufferSize)
+		else if (j >= other.m_nBufferSize)
 		{
 			carry += m_pBuffer[i];
 		}
@@ -444,7 +444,7 @@ CBigValue CBigValue::operator + (const CBigValue &other) const
 		{
 			carry += (m_pBuffer[i] + pother[j]);
 		}
-		value.m_pBuffer += (carry &0xFF);
+		value.m_pBuffer[i] += (carry & 0xFF);
 		carry >>= 8;
 	}
 
