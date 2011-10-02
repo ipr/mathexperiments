@@ -271,6 +271,13 @@ CBigValue::~CBigValue(void)
 // exponent: power of two, excess-64, two's-complement values are adjusted upward
 // by 64, thus changing $40 (-64) through $3F (+63) to $00 through $7F
 //
+// note: sign-bit is highest in exponent, not in mantissa:
+// MMMM MMMM MMMM MMMM MMMM MMMM SEEE EEEE
+// 31     24 23                8 7       0
+// (description from Paul Overaa's Amiga Assembler book)
+// -> try to find Motorola's manuals also..
+//
+// Also see descriptions:
 // -> http://gega.homelinux.net/AmigaDevDocs/lib_35.html
 // -> http://amigadev.elowar.com/read/ADCD_2.1/Libraries_Manual_guide/node047D.html
 // -> http://www.tbs-software.com/guide/index.php?guide=rkm_libraries.doc%2Flib_35.guide
@@ -280,17 +287,18 @@ CBigValue& CBigValue::fromFFP32(const uint8_t *data)
 	// 24 bits for mantissa, 8 for exponent
 	CreateBuffer(4); // guess..
 
-	// guessing sign pos..
-	m_bNegative = (data[0] & (1 << 7)) ? true : false;
-
 	// if all are zero we have (positive) zero -> nothing more to do
 	if (data[0] == 0 && data[1] == 0 && data[2] == 0 && data[3] == 0)
 	{
-		m_nScale = 0; // verify this too, buffer should be zero already
+		// buffer should be zero already
+		m_nScale = 0; // verify this too
+		m_bNegative = true; // positive zero
 		return *this;
 	}
 
-	m_nScale = data[3]; // get exponent
+	// guessing sign pos..
+	m_bNegative = (data[3] & (1 << 7)) ? true : false;
+	m_nScale = (data[3] ^ (1 << 7)); // get exponent, withough sign-bit
 
 	/*
 	uint32_t base = 0; // mantissa
