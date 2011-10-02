@@ -82,6 +82,7 @@ public:
 	uint64_t operator() const;
 	double operator() const;
 
+	friend class CBigValue;
 };
 
 // pure virtual operand type

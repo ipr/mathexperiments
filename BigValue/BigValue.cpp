@@ -341,7 +341,26 @@ CBigValue CBigValue::operator + (const CBigValue &other) const
 	// we don't know output size or scale yet
 	// so we need to check our and given data for estimate..
 
+	// also need to check scaling of both,
+	// if either is negative, buffer sizes etc.
+
 	CBigValue value;
+
+	value.CreateBuffer(m_nBufferSize+1); // guess..
+
+	// for larger than single element, keep overflow to next
+	uint16_t carry = 0;
+	for (int i = 0; i < m_nBufferSize; i++)
+	{
+		carry += (m_pBuffer[i] + other.m_pBuffer[i]);
+		value.m_pBuffer += (carry &0xFF);
+		carry >>= 8;
+	}
+	if (carry > 0)
+	{
+		// overflow to destination (which should be larger)
+		value.m_pBuffer[m_nBufferSize] = (carry &0xFF);
+	}
 
 	return value;
 }
