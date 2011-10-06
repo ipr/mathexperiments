@@ -75,11 +75,12 @@ void CBigValue::GrowBuffer(const size_t nBufSize)
 		return;
 	}
 
+	// grow buffer, keep data
 	if (nBufSize > m_nBufferSize)
 	{
 		uint8_t *pBuffer = new uint8_t[nBufSize];
-		::memset(pBuffer, 0, nBufSize);
-		::memcpy(pBuffer, m_pBuffer, m_nBufferSize);
+		::memset(pBuffer, 0, nBufSize); // clear entirely first
+		::memcpy(pBuffer, m_pBuffer, m_nBufferSize); // copy to new
 		delete m_pBuffer;
 		m_pBuffer = pBuffer;
 		m_nBufferSize = nBufSize;
@@ -95,7 +96,7 @@ void CBigValue::GrowBuffer(const size_t nBufSize)
 // 24, 52, 64, 112 bits, including normalization-bit (handle it).
 // IEEE formats define sign as sign of mantissa (not sign of exponent as with FFP)
 // -> sign handled with exponent
-void CBigValue::fromIEEEMantissa(const uint8_t *mantissa, const size_t size)
+void CBigValue::fromIEEEMantissa(const uint8_t *mantissa, const size_t size, const bool isBigendian)
 {
 	bool isNormalized = (mantissa[0] & (1 << 7)) ? true : false;
 
@@ -162,18 +163,17 @@ CBigValue::CBigValue(const int64_t value)
 	m_bNegative = (data[7] & (1 << 7)) ? true : false;
 	m_nScale = 0;
 
-	// TODO: need +1 in some byte when negative since sign takes one bit..
-	// (we get a different absolute-value now..)
+	// need +1 in first since negative sign takes one bit,
+	// must carry forward if overflows..
 	uint16_t carry = (m_bNegative) ? 1 : 0;
 
-	// byte-for-byte..
 	const int count = sizeof(value);
 	for (int i = 0; i < count; i++)
 	{
-		// change complement values if negative
+		// change complement values if negative, keep absolute value
 		if (m_bNegative == true)
 		{
-			// use carry for simple increment
+			// note cast: avoid complement of larger type (auto-increase..)
 			carry += ((uint8_t)~(data[i] & 0xFF));
 			m_pBuffer[i] = (carry & 0xFF);
 			carry >>= 8;
@@ -213,18 +213,18 @@ CBigValue::CBigValue(const double value)
 	CreateBuffer(8); // guess..
 
 	// deconstruct value to buffer..
+	// note: following needs testing&fixing
 
 	uint8_t *data = (uint8_t*)(&value);
-
 	m_bNegative = (data[7] & (1 << 7)) ? true : false;
 
-	// 11 bits
-	m_nScale = (data[7] ^ (1 << 7));
-	m_nScale <<= 1;
-	m_nScale += ((data[6] & (0xF << 4)) >> 4);
+	// exponent: 11 bits
+	m_nScale = (data[7] & 0x7F); // -1 bit (7)
+	m_nScale <<= 4; // for next bits
+	m_nScale += ((data[6] & (0xF << 4)) >> 4); // get upper 4 bits, add for scale
 
 	// 52 bits -> even number of bits
-	fromIEEEMantissa(data + 1, 52);
+	fromIEEEMantissa(data + 1, 52, false);
 }
 
 CBigValue::CBigValue(const float value)
@@ -236,17 +236,18 @@ CBigValue::CBigValue(const float value)
 	CreateBuffer(4); // guess..
 
 	// deconstruct value to buffer..
+	// note: following needs testing&fixing
 
 	uint8_t *data = (uint8_t*)(&value);
-
 	m_bNegative = (data[3] & (1 << 31)) ? true : false;
-	//m_nScale = ((value & (0xFF << 23)) >> 23) ^ (1 << 23);
-	m_nScale = (data[3] ^ (1 << 7));
-	m_nScale <<= 1;
-	m_nScale |= (data[2] & (1 << 7));
+
+	// exponent: 8 bits
+	m_nScale = (data[3] & 0x7F); // -1 bit (7)
+	m_nScale <<= 1; // for adding next
+	m_nScale |= ((data[2] & (1 << 7)) >> 7); // last bit of exponent (highest bit of next byte)
 
 	// 23 bits -> odd number of bits
-	fromIEEEMantissa(data + 1, 23);
+	fromIEEEMantissa(data + 1, 23, false);
 }
 
 CBigValue::CBigValue(const CBigValue &other)
@@ -277,6 +278,7 @@ CBigValue::~CBigValue(void)
 
 // scale value to given scale
 // TODO: do we keep scale as base-2 or base-10..?
+// -> base-2 should allow simple shifting/moving in buffer..
 CBigValue& CBigValue::scaleTo(const size_t nScale)
 {
 	if (nScale == m_nScale)
@@ -294,16 +296,19 @@ CBigValue& CBigValue::scaleTo(const size_t nScale)
 
 		// something like this maybe..
 		::memmove(m_pBuffer, m_pBuffer + diff, m_nBufferSize - diff);
-
-		m_nScale = diff;
-
-		return *this;
+		m_nScale = nScale;
 	}
 	else
 	{
 		// just scale "upwards" (add zero bytes if necessary)
-	}
 
+		size_t diff = (nScale-m_nScale);
+		size_t existing = m_nBufferSize;
+
+		GrowBuffer(m_nBufferSize + diff);
+		::memmove(m_pBuffer + diff, m_pBuffer, existing);
+		m_nScale = nScale;
+	}
 	return *this;
 }
 
@@ -391,7 +396,7 @@ CBigValue& CBigValue::fromExtended(const uint8_t *data)
 	// between exponent and significand
 	// ->
 	// 63 bits -> odd number of bits
-	fromIEEEMantissa(data + 2, 63);
+	fromIEEEMantissa(data + 2, 63, true);
 
 	return *this;
 }
@@ -413,7 +418,7 @@ CBigValue& CBigValue::fromQuadruple(const uint8_t *data)
 	m_nScale = scale;
 
 	// 112 bits -> even number of bits
-	fromIEEEMantissa(data + 2, 112);
+	fromIEEEMantissa(data + 2, 112, true);
 
 	return *this;
 }
@@ -529,7 +534,7 @@ CBigValue::operator uint64_t() const
 	// byte-for-byte.. just set absolute value,
 	// user might want something else some day..
 	//
-	for (int i = 0; i < sizeof(value); i++)
+	for (size_t i = 0; i < sizeof(value) && i < m_nBufferSize; i++)
 	{
 		data[i] = m_pBuffer[i];
 	}

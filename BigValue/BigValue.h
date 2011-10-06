@@ -106,7 +106,7 @@ protected:
 	void CreateBuffer(const size_t nBufSize);
 	void GrowBuffer(const size_t nBufSize);
 
-	void fromIEEEMantissa(const uint8_t *mantissa, const size_t size);
+	void fromIEEEMantissa(const uint8_t *mantissa, const size_t size, const bool isBigendian);
 
 public:
 	explicit CBigValue(const int64_t value);
