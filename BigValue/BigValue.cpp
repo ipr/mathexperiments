@@ -344,21 +344,11 @@ CBigValue& CBigValue::fromFFP32(const uint8_t *data)
 		return *this;
 	}
 
-	// guessing sign pos..
-	m_bNegative = (data[3] & (1 << 7)) ? true : false;
-	m_nScale = (data[3] ^ (1 << 7)); // get exponent, withough sign-bit
+	m_bNegative = (data[3] & (1 << 7)) ? true : false; // sign-bit in exponent
+	m_nScale = (data[3] & 0x7F); // get exponent, withough sign-bit
 
-	/*
-	uint32_t base = 0; // mantissa
-	base += (data[0] ^ (1 << 7));
-	base <<= 8;
-	base += (data[1]);
-	base <<= 8;
-	base += (data[2]);
-	base <<= 8;
-	*/
-
-	m_pBuffer[2] = (data[0] ^ (1 << 7));
+	// switch byteorder also
+	m_pBuffer[2] = (data[0] & 0xFF); // no sign/normalization bit in mantissa
 	m_pBuffer[1] = (data[1] & 0xFF);
 	m_pBuffer[0] = (data[2] & 0xFF);
 
