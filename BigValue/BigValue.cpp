@@ -164,6 +164,7 @@ CBigValue::CBigValue(const int64_t value)
 
 	// TODO: need +1 in some byte when negative since sign takes one bit..
 	// (we get a different absolute-value now..)
+	uint16_t carry = (m_bNegative) ? 1 : 0;
 
 	// byte-for-byte..
 	const int count = sizeof(value);
@@ -172,7 +173,10 @@ CBigValue::CBigValue(const int64_t value)
 		// change complement values if negative
 		if (m_bNegative == true)
 		{
-			m_pBuffer[i] = ~(data[i] & 0xFF);
+			// use carry for simple increment
+			carry += ((uint8_t)~(data[i] & 0xFF));
+			m_pBuffer[i] = (carry & 0xFF);
+			carry >>= 8;
 		}
 		else if (m_bNegative == false)
 		{
@@ -511,11 +515,12 @@ CBigValue::operator uint64_t() const
 	// test, just give absolute value without sign..
 	// (this might not be what is wanted but for testing),
 	// also scaling is not done now..
-
 	/*
+	CBigValue *pSrc = this;
 	if (m_nScale != 0)
 	{
-		scaleTo(0);
+		pSrc = new CBigValue(this);
+		pSrc->scaleTo(0);
 	}
 	*/
 
