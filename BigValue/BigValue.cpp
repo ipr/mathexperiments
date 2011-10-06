@@ -287,28 +287,31 @@ CBigValue& CBigValue::scaleTo(const size_t nScale)
 		return *this;
 	}
 
+	// check lower bytes how much "downwards" we can scale?
+	// or trust user and allow loss of precision?
+	// -> trust user..
+
+	// actually, if "exponent" decreases then "value" needs to increase
+	// so that result is same regardless of "scaling" of "value"
+	// -> must move "upwards" when smaller scale,
+	// also buffer needs to grow..
+
 	if (nScale < m_nScale)
 	{
-		// check lower bytes how much "downwards" we can scale?
-		// or trust user and allow loss of precision?
-		// -> trust user..
 		size_t diff = (m_nScale-nScale);
-
-		// something like this maybe..
-		::memmove(m_pBuffer, m_pBuffer + diff, m_nBufferSize - diff);
-		m_nScale = nScale;
-	}
-	else
-	{
-		// just scale "upwards" (add zero bytes if necessary)
-
-		size_t diff = (nScale-m_nScale);
 		size_t existing = m_nBufferSize;
 
 		GrowBuffer(m_nBufferSize + diff);
 		::memmove(m_pBuffer + diff, m_pBuffer, existing);
-		m_nScale = nScale;
+
 	}
+	else
+	{
+		size_t diff = (nScale-m_nScale);
+		::memmove(m_pBuffer, m_pBuffer + diff, m_nBufferSize - diff);
+	}
+
+	m_nScale = nScale;
 	return *this;
 }
 
