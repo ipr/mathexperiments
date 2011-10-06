@@ -302,13 +302,21 @@ CBigValue& CBigValue::scaleTo(const size_t nScale)
 		size_t existing = m_nBufferSize;
 
 		GrowBuffer(m_nBufferSize + diff);
+		// "upwards"
 		::memmove(m_pBuffer + diff, m_pBuffer, existing);
 
+		// set zero to "filler" near beginning
+		::memset(m_pBuffer, 0, diff);
 	}
 	else
 	{
 		size_t diff = (nScale-m_nScale);
+		// "downwards"
 		::memmove(m_pBuffer, m_pBuffer + diff, m_nBufferSize - diff);
+
+		// set zero to unused near end
+		uint8_t *pos = m_pBuffer + (m_nBufferSize - diff);
+		::memset(pos, 0, diff);
 	}
 
 	m_nScale = nScale;
