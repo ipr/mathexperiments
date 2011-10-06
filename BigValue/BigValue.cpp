@@ -158,38 +158,27 @@ CBigValue::CBigValue(const int64_t value)
 {
 	CreateBuffer(sizeof(int64_t));
 
-	m_bNegative = (value & (1 << 63)) ? true : false;
+	uint8_t *data = (uint8_t*)(&value);
+	m_bNegative = (data[7] & (1 << 7)) ? true : false;
 	m_nScale = 0;
 
-	// TODO: change complement values if negative?
+	// TODO: need +1 in some byte when negative since sign takes one bit..
+	// (we get a different absolute-value now..)
 
-	uint64_t bitmask = 0xFF;
-	int maskshift = 0;
-	const int count = sizeof(int64_t);
+	// byte-for-byte..
+	const int count = sizeof(value);
 	for (int i = 0; i < count; i++)
 	{
+		// change complement values if negative
 		if (m_bNegative == true)
 		{
-			m_pBuffer[i] = ~((value & bitmask) >> (maskshift*8));
+			m_pBuffer[i] = ~(data[i] & 0xFF);
 		}
-		else
+		else if (m_bNegative == false)
 		{
-			m_pBuffer[i] = ((value & bitmask) >> (maskshift*8));
+			m_pBuffer[i] = (data[i] & 0xFF);
 		}
-
-		/*
-		if (m_pBuffer[i] == 0)
-		{
-			// increase scale and overwrite with next byte
-			m_nScale += 1;
-		}
-		*/
-		bitmask <<= 8;
-		maskshift += 1;
 	}
-
-	// we don't want sign-bit remaining there..
-	m_pBuffer[count-1] = (m_pBuffer[count-1] ^ (1 << 7));
 }
 
 CBigValue::CBigValue(const uint64_t value)
@@ -199,23 +188,15 @@ CBigValue::CBigValue(const uint64_t value)
 	, m_bNegative(false)
 {
 	CreateBuffer(sizeof(uint64_t));
-	//::memcpy(m_pBuffer, &value, sizeof(uint64_t));
 
-	uint64_t bitmask = 0xFF;
-	int maskshift = 0;
-	const int count = sizeof(uint64_t);
-	for (int i = 0; i < count; i++)
+	uint8_t *data = (uint8_t*)(&value);
+	m_bNegative = false;
+	m_nScale = 0;
+
+	// byte-for-byte..
+	for (int i = 0; i < sizeof(value); i++)
 	{
-		m_pBuffer[i] = ((value & bitmask) >> (maskshift*8));
-		/*
-		if (m_pBuffer[i] == 0)
-		{
-			// increase scale and overwrite with next byte
-			m_nScale += 1;
-		}
-		*/
-		bitmask <<= 8;
-		maskshift += 1;
+		m_pBuffer[i] = (data[i] & 0xFF);
 	}
 }
 
@@ -304,6 +285,15 @@ CBigValue& CBigValue::scaleTo(const size_t nScale)
 	{
 		// check lower bytes how much "downwards" we can scale?
 		// or trust user and allow loss of precision?
+		// -> trust user..
+		size_t diff = (m_nScale-nScale);
+
+		// something like this maybe..
+		::memmove(m_pBuffer, m_pBuffer + diff, m_nBufferSize - diff);
+
+		m_nScale = diff;
+
+		return *this;
 	}
 	else
 	{
@@ -473,7 +463,7 @@ CBigValue CBigValue::operator + (const CBigValue &other) const
 	uint16_t carry = 0;
 
 	// TODO: likely different buffer sizes also..
-	for (int i = 0, j = 0; i < m_nBufferSize || j < other.m_nBufferSize; i++, j++)
+	for (size_t i = 0, j = 0; i < m_nBufferSize || j < other.m_nBufferSize; i++, j++)
 	{
 		if (i >= m_nBufferSize)
 		{
@@ -517,6 +507,27 @@ CBigValue::operator uint64_t() const
 
 	// scale&calculate, copy from buffer to value,
 	// may have loss of precision..
+
+	// test, just give absolute value without sign..
+	// (this might not be what is wanted but for testing),
+	// also scaling is not done now..
+
+	/*
+	if (m_nScale != 0)
+	{
+		scaleTo(0);
+	}
+	*/
+
+	uint8_t *data = (uint8_t*)(&value);
+
+	// byte-for-byte.. just set absolute value,
+	// user might want something else some day..
+	//
+	for (int i = 0; i < sizeof(value); i++)
+	{
+		data[i] = m_pBuffer[i];
+	}
 
 	return value;
 }
