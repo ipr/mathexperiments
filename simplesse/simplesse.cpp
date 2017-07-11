@@ -9,6 +9,42 @@
 
 #include <xmmintrin.h>
 
+// might be too much overhead, try it out and measure..
+//template <typename T1, typename T2, typename T3, typename T4> 
+class sseQuad
+{
+	// force 16 byte align
+	__declspec(align(16)) struct vec_t { float m_v[4]; }; // 16 byte -> align
+	vec_t v;
+
+	sseQuad(float f1, float f2, float f3, float f4)
+	{
+		v.m_v[0] = f1;
+		v.m_v[1] = f2;
+		v.m_v[2] = f3;
+		v.m_v[3] = f4;
+	}
+	sseQuad(float *pf)
+	{
+		v.m_v[0] = pf[0];
+		v.m_v[1] = pf[1];
+		v.m_v[2] = pf[2];
+		v.m_v[3] = pf[3];
+	}
+
+	sseQuad& operator += (sseQuad &other)
+	{
+		// TODO: test
+		__asm
+		{
+			movaps xmm0, [v]; v1.[w, z, y, x]
+			addps xmm0, [other.v]; [].w + w, z + z, y + y, x + x
+			movaps[v], xmm0; back to c++ data
+		}
+		return *this;
+	}
+
+};
 
 enum CpuExFlag
 {
@@ -44,6 +80,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	{
 		return -1;
 	}
+
+	LARGE_INTEGER liStartClock, liPerfFreq;
+	::QueryPerformanceCounter(&liStartClock);
+	::QueryPerformanceFrequency(&liPerfFreq);
 
 	// force 16 byte align
 	__declspec(align(16)) struct vec_t { float m_v[4]; }; // 16 byte -> align
